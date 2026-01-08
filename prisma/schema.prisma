@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum SeatStatus {
+  AVAILABLE
+  LOCKED
+  RESERVED
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELED
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime      @default(now())
+
+  reservations Reservation[]
+}
+
+model Performance {
+  id         Int                   @id @default(autoincrement())
+  title      String
+  venueName String
+  posterUrl String?
+  createdAt DateTime               @default(now())
+
+  sessions   PerformanceSession[]
+}
+
+model PerformanceSession {
+  id            Int          @id @default(autoincrement())
+  performanceId Int
+  startsAt      DateTime
+  seatMapId     String?
+  createdAt     DateTime     @default(now())
+
+  performance   Performance  @relation(fields: [performanceId], references: [id])
+  seats         Seat[]
+  reservations  Reservation[]
+}
+
+model Seat {
+  id              Int                @id @default(autoincrement())
+  sessionId       Int
+  code            String
+  row             String?
+  number          Int?
+  grade           String?
+  price           Int
+  status          SeatStatus         @default(AVAILABLE)
+  lockedUntil     DateTime?
+  lockedByUserId  Int?
+  
+  // 1:1 관계를 위해 @unique 추가
+  reservationId   Int?               @unique 
+  createdAt       DateTime           @default(now())
+
+  session         PerformanceSession @relation(fields: [sessionId], references: [id])
+  reservation     Reservation?       @relation(fields: [reservationId], references: [id])
+
+  @@unique([sessionId, code])
+  @@index([sessionId, status]) // 성능을 위한 인덱스 추가 추천
+}
+
+model Reservation {
+  id          Int                @id @default(autoincrement())
+  userId      Int
+  sessionId   Int
+  status      ReservationStatus  @default(CONFIRMED)
+  createdAt   DateTime           @default(now())
+
+  user        User               @relation(fields: [userId], references: [id])
+  session     PerformanceSession @relation(fields: [sessionId], references: [id])
+  
+  // Seat 모델에서 참조하므로 여기서는 정의만 합니다.
+  seat        Seat?
+}
